@@ -3,6 +3,7 @@ import { Search, Download, MessageCircle, Users, Car } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { malentachiApi } from "@/integrations/malentachi/client";
 import { Interesse } from "@/types/interesse";
 import { Header } from "@/components/dashboard/Header";
 import { Footer } from "@/components/dashboard/Footer";
@@ -79,14 +80,7 @@ const Index = () => {
 
   const { data: interesses = [], isLoading } = useQuery({
     queryKey: ["interesses"],
-    queryFn: async (): Promise<Interesse[]> => {
-      const { data, error } = await supabase
-        .from("interesses")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Interesse[];
-    },
+    queryFn: () => malentachiApi.list(),
   });
 
   const baseResults = useMemo(() => {
