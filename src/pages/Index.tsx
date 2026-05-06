@@ -269,6 +269,8 @@ const Index = () => {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setSelected(new Set());
+                  setCarFilter("__all__");
+                  setRefine("");
                   setVisible(PAGE_SIZE);
                 }}
                 className="pl-9 h-11"
@@ -283,6 +285,48 @@ const Index = () => {
               Enviar mensagem ({selected.size})
             </Button>
           </div>
+
+          {query.trim() && carOptions.length > 0 && (
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+              <Select
+                value={carFilter}
+                onValueChange={(v) => {
+                  setCarFilter(v);
+                  setSelected(new Set());
+                  setVisible(PAGE_SIZE);
+                }}
+              >
+                <SelectTrigger className="h-10 sm:w-72">
+                  <SelectValue placeholder="Filtrar por carro" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos os carros ({baseResults.length})</SelectItem>
+                  {carOptions.map(([car, count]) => (
+                    <SelectItem key={car} value={car}>{car} ({count})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                placeholder="Refinar (nome, número, nota...)"
+                value={refine}
+                onChange={(e) => {
+                  setRefine(e.target.value);
+                  setSelected(new Set());
+                  setVisible(PAGE_SIZE);
+                }}
+                className="h-10 flex-1"
+              />
+              {(carFilter !== "__all__" || refine) && (
+                <Button
+                  variant="ghost"
+                  className="h-10"
+                  onClick={() => { setCarFilter("__all__"); setRefine(""); }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border border-border bg-card shadow-card">
