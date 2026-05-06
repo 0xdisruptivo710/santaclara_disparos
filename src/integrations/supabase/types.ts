@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      envios: {
+        Row: {
+          busca: string | null
+          clientes: Json
+          created_at: string
+          id: string
+          mensagem: string
+          total: number
+        }
+        Insert: {
+          busca?: string | null
+          clientes?: Json
+          created_at?: string
+          id?: string
+          mensagem: string
+          total?: number
+        }
+        Update: {
+          busca?: string | null
+          clientes?: Json
+          created_at?: string
+          id?: string
+          mensagem?: string
+          total?: number
+        }
+        Relationships: []
+      }
       interesses: {
         Row: {
           carro_interesse: string
