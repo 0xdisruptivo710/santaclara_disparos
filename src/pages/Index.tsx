@@ -88,7 +88,7 @@ const Index = () => {
     },
   });
 
-  const results = useMemo(() => {
+  const baseResults = useMemo(() => {
     if (!query.trim()) return [];
     return interesses
       .map((i) => ({ item: i, score: scoreMatch(i.carro_interesse, query) }))
@@ -96,6 +96,27 @@ const Index = () => {
       .sort((a, b) => b.score - a.score)
       .map((x) => x.item);
   }, [interesses, query]);
+
+  const carOptions = useMemo(() => {
+    const map = new Map<string, number>();
+    baseResults.forEach((r) => map.set(r.carro_interesse, (map.get(r.carro_interesse) ?? 0) + 1));
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [baseResults]);
+
+  const results = useMemo(() => {
+    let r = baseResults;
+    if (carFilter !== "__all__") r = r.filter((x) => x.carro_interesse === carFilter);
+    if (refine.trim()) {
+      const n = normalize(refine);
+      r = r.filter((x) =>
+        normalize(x.nome).includes(n) ||
+        normalize(x.carro_interesse).includes(n) ||
+        normalize(x.numero).includes(n) ||
+        normalize(x.nota_interna ?? "").includes(n)
+      );
+    }
+    return r;
+  }, [baseResults, carFilter, refine]);
 
   const visibleResults = useMemo(() => results.slice(0, visible), [results, visible]);
 
