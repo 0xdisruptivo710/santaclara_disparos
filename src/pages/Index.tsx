@@ -63,6 +63,9 @@ function scoreMatch(carroInteresse: string, query: string): number {
 const PAGE_SIZE = 25;
 const MAX_BATCH = 50;
 const INTERVAL_SECONDS = 30;
+const SENDER_NUMBER = "5515991280217";
+const DEFAULT_MESSAGE =
+  "Olá, você entrou em contato conosco recentemente atrás {carro}, chegou outro mais novo ainda, gostaria de ver?";
 // Endpoint de disparo individual (será preenchido pelo backend do CRM AIOS).
 // Cada cliente é enviado de forma espaçada para evitar bloqueios do WhatsApp.
 const SEND_ENDPOINT = (import.meta.env.VITE_SEND_ENDPOINT as string | undefined) ?? "";
@@ -75,7 +78,8 @@ const Index = () => {
   const [msgOpen, setMsgOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [sendMode, setSendMode] = useState<"selected" | "all">("selected");
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   const { data: interesses = [], isLoading } = useQuery({
@@ -156,18 +160,28 @@ const Index = () => {
   };
 
   const targets = useMemo(
-    () => results.filter((r) => selected.has(r.id)),
-    [results, selected]
+    () => (sendMode === "all" ? results : results.filter((r) => selected.has(r.id))),
+    [results, selected, sendMode]
   );
 
-  const overLimit = selected.size > MAX_BATCH;
-  const estimatedMinutes = Math.ceil((selected.size * INTERVAL_SECONDS) / 60);
+  const overLimit = targets.length > MAX_BATCH;
+  const estimatedMinutes = Math.ceil((targets.length * INTERVAL_SECONDS) / 60);
 
-  const openMsg = () => {
+  const openMsgSelected = () => {
     if (selected.size === 0) {
       toast({ title: "Selecione clientes", description: "Marque ao menos um cliente para enviar mensagem.", variant: "destructive" });
       return;
     }
+    setSendMode("selected");
+    setMsgOpen(true);
+  };
+
+  const openMsgAll = () => {
+    if (results.length === 0) {
+      toast({ title: "Sem resultados", description: "Faça uma busca primeiro.", variant: "destructive" });
+      return;
+    }
+    setSendMode("all");
     setMsgOpen(true);
   };
 
@@ -192,7 +206,11 @@ const Index = () => {
     setSending(true);
 
     const personalize = (t: Interesse) =>
-      message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
+      message
+        .replace(/\{nome\}/gi, t.nome)
+        .replace(/\{carro\}/gi, t.carro_interesse)
+        .replace(/\[modelo carro\]/gi, t.carro_interesse)
+        .replace(/\[nome\]/gi, t.nome);
 
     targets.forEach((t, idx) => {
       const phone = t.numero.replace(/\D/g, "");
@@ -203,7 +221,11 @@ const Index = () => {
             await fetch(SEND_ENDPOINT, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ nome: t.nome, numero: phone, mensagem: texto, carro: t.carro_interesse }),
+              body: JSON.stringify({
+                body: { text: texto },
+                to: phone,
+                from: SENDER_NUMBER,
+              }),
             });
           } catch (e) {
             console.error("Falha no disparo:", e);
@@ -274,9 +296,13 @@ const Index = () => {
               <Download className="h-4 w-4" />
               Exportar CSV
             </Button>
-            <Button onClick={openMsg} className="gap-2 h-11 bg-gradient-primary">
+            <Button onClick={openMsgSelected} variant="outline" className="gap-2 h-11">
               <MessageCircle className="h-4 w-4" />
-              Enviar mensagem ({selected.size})
+              Selecionados ({selected.size})
+            </Button>
+            <Button onClick={openMsgAll} className="gap-2 h-11 bg-gradient-primary">
+              <MessageCircle className="h-4 w-4" />
+              Enviar para todos ({results.length})
             </Button>
           </div>
 
@@ -396,7 +422,7 @@ const Index = () => {
       <Dialog open={msgOpen} onOpenChange={setMsgOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enviar mensagem ({selected.size} cliente(s))</DialogTitle>
+            <DialogTitle>Enviar mensagem ({targets.length} cliente(s){sendMode === "all" ? " — todos os resultados" : ""})</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -415,7 +441,7 @@ const Index = () => {
               <p>• Para volumes maiores, utilize <strong>Campanhas</strong> no CRM AIOS.</p>
               {overLimit && (
                 <p className="text-destructive font-medium">
-                  Você selecionou {selected.size}. Reduza para no máximo {MAX_BATCH}.
+                  Você selecionou {targets.length}. Reduza para no máximo {MAX_BATCH}.
                 </p>
               )}
             </div>
