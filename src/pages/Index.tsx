@@ -1,112 +1,254 @@
-import { useState, useCallback } from "react";
-import { Users, CalendarCheck, TrendingUp, Calendar } from "lucide-react";
-import { format } from "date-fns";
+import { useState, useMemo } from "react";
+import { Search, Download, MessageCircle, Users, Car } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
-import { useDashboardData } from "@/hooks/useDashboardData";
-import { DashboardFilters } from "@/types/dashboard";
+import { supabase } from "@/integrations/supabase/client";
+import { Interesse } from "@/types/interesse";
 import { Header } from "@/components/dashboard/Header";
-import { MetricCard } from "@/components/dashboard/MetricCard";
-import { Filters } from "@/components/dashboard/Filters";
-import { CampaignRanking } from "@/components/dashboard/CampaignRanking";
-import { TemporalChart } from "@/components/dashboard/TemporalChart";
-import { CampaignDistribution } from "@/components/dashboard/CampaignDistribution";
-import { ConjuntoMetrics } from "@/components/dashboard/ConjuntoMetrics";
 import { Footer } from "@/components/dashboard/Footer";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
+
+function normalize(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
+function tokenize(s: string): string[] {
+  return normalize(s).split(/\s+/).filter(Boolean);
+}
+
+function matchesCar(carroInteresse: string, query: string): boolean {
+  if (!query.trim()) return false;
+  const interesse = normalize(carroInteresse);
+  const tokens = tokenize(query);
+  // Match if any token appears as substring (covers Fox/Crossfox)
+  return tokens.some((t) => interesse.includes(t));
+}
 
 const Index = () => {
-  const [filters, setFilters] = useState<DashboardFilters>({
-    startDate: null,
-    endDate: null,
-    campanhas: [],
-    conjuntos: [],
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [msgOpen, setMsgOpen] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const { data: interesses = [], isLoading } = useQuery({
+    queryKey: ["interesses"],
+    queryFn: async (): Promise<Interesse[]> => {
+      const { data, error } = await supabase
+        .from("interesses")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data as Interesse[];
+    },
   });
 
-  const {
-    isLoading,
-    isRefetching,
-    refetch,
-    totalLeads,
-    totalAgendamentos,
-    taxaConversao,
-    minDate,
-    maxDate,
-    allCampanhas,
-    allConjuntos,
-    campaignMetrics,
-    conjuntoMetrics,
-    dailyMetrics,
-  } = useDashboardData(filters);
+  const results = useMemo(() => {
+    if (!query.trim()) return [];
+    return interesses.filter((i) => matchesCar(i.carro_interesse, query));
+  }, [interesses, query]);
 
-  const handleRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
+  const allSelected = results.length > 0 && results.every((r) => selected.has(r.id));
 
-  const formatDateRange = () => {
-    if (!minDate || !maxDate) return "Carregando...";
-    return `${format(minDate, "dd/MM/yy")} - ${format(maxDate, "dd/MM/yy")}`;
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(results.map((r) => r.id)));
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    const next = new Set(selected);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelected(next);
+  };
+
+  const exportCSV = () => {
+    const rows = results.length > 0 ? results : [];
+    if (rows.length === 0) {
+      toast({ title: "Nada para exportar", description: "Faça uma busca primeiro." });
+      return;
+    }
+    const header = ["Nome", "Numero", "Carro de Interesse", "Nota Interna"];
+    const csv = [
+      header.join(","),
+      ...rows.map((r) =>
+        [r.nome, r.numero, r.carro_interesse, r.nota_interna ?? ""]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+          .join(",")
+      ),
+    ].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `busca-${query}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const openMsg = () => {
+    if (selected.size === 0) {
+      toast({ title: "Selecione clientes", description: "Marque ao menos um cliente para enviar mensagem.", variant: "destructive" });
+      return;
+    }
+    setMsgOpen(true);
+  };
+
+  const sendMessages = () => {
+    const targets = results.filter((r) => selected.has(r.id));
+    if (!message.trim()) {
+      toast({ title: "Mensagem vazia", variant: "destructive" });
+      return;
+    }
+    targets.forEach((t, idx) => {
+      const phone = t.numero.replace(/\D/g, "");
+      const personal = message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
+      const url = `https://wa.me/${phone}?text=${encodeURIComponent(personal)}`;
+      setTimeout(() => window.open(url, "_blank"), idx * 400);
+    });
+    setMsgOpen(false);
+    toast({ title: `Abrindo WhatsApp para ${targets.length} cliente(s)` });
   };
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header onRefresh={handleRefresh} isRefreshing={isRefetching} />
+      <Header />
 
       <main className="container mx-auto flex-1 space-y-6 px-4 py-6">
-        {/* KPI Cards */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <MetricCard
-            title="Total de Leads"
-            value={totalLeads.toLocaleString("pt-BR")}
-            subtitle="Contatos captados"
-            icon={Users}
-            variant="primary"
-            isLoading={isLoading}
-          />
-          <MetricCard
-            title="Agendamentos"
-            value={totalAgendamentos.toLocaleString("pt-BR")}
-            subtitle="Tracking = Feito"
-            icon={CalendarCheck}
-            variant="success"
-            isLoading={isLoading}
-          />
-          <MetricCard
-            title="Taxa de Conversão"
-            value={`${taxaConversao.toFixed(1)}%`}
-            subtitle="Agendamentos / Leads"
-            icon={TrendingUp}
-            isLoading={isLoading}
-          />
-          <MetricCard
-            title="Período"
-            value={formatDateRange()}
-            subtitle="Dados disponíveis"
-            icon={Calendar}
-            isLoading={isLoading}
-          />
+        <section className="rounded-2xl border border-border bg-gradient-card p-6 shadow-card">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-lg bg-primary/10 p-2 text-primary">
+              <Car className="h-5 w-5" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Buscar interessados por veículo</h1>
+              <p className="text-sm text-muted-foreground">
+                Digite o modelo (ex.: Fox) para encontrar clientes com interesse correspondente.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar carro... (ex.: Fox)"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSelected(new Set());
+                }}
+                className="pl-9 h-11"
+              />
+            </div>
+            <Button onClick={exportCSV} variant="outline" className="gap-2 h-11">
+              <Download className="h-4 w-4" />
+              Exportar CSV
+            </Button>
+            <Button onClick={openMsg} className="gap-2 h-11 bg-gradient-primary">
+              <MessageCircle className="h-4 w-4" />
+              Enviar mensagem ({selected.size})
+            </Button>
+          </div>
         </section>
 
-        {/* Filters */}
-        <Filters
-          filters={filters}
-          allCampanhas={allCampanhas}
-          allConjuntos={allConjuntos}
-          onFiltersChange={setFilters}
-        />
+        <section className="rounded-2xl border border-border bg-card shadow-card">
+          <div className="flex items-center justify-between border-b border-border px-6 py-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h2 className="font-semibold text-foreground">Resultados</h2>
+              <Badge variant="secondary">{results.length}</Badge>
+            </div>
+            {!query.trim() && (
+              <span className="text-xs text-muted-foreground">Comece digitando um modelo acima</span>
+            )}
+          </div>
 
-        {/* Charts Grid */}
-        <section className="grid gap-6 lg:grid-cols-2">
-          <TemporalChart data={dailyMetrics} isLoading={isLoading} />
-          <CampaignDistribution data={campaignMetrics} isLoading={isLoading} />
+          {isLoading ? (
+            <div className="p-8 text-center text-muted-foreground">Carregando base...</div>
+          ) : !query.trim() ? (
+            <div className="p-12 text-center text-muted-foreground">
+              Faça uma busca para ver os clientes correspondentes.
+            </div>
+          ) : results.length === 0 ? (
+            <div className="p-12 text-center text-muted-foreground">
+              Nenhum cliente encontrado para "{query}".
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
+                  </TableHead>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Carro de Interesse</TableHead>
+                  <TableHead>Nota Interna</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.map((r) => (
+                  <TableRow key={r.id} className="cursor-pointer" onClick={() => toggleOne(r.id)}>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selected.has(r.id)}
+                        onCheckedChange={() => toggleOne(r.id)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell>{r.numero}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{r.carro_interesse}</Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{r.nota_interna || "-"}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </section>
-
-        {/* Campaign Ranking */}
-        <CampaignRanking data={campaignMetrics} isLoading={isLoading} />
-
-        {/* Conjunto Metrics */}
-        <ConjuntoMetrics data={conjuntoMetrics} isLoading={isLoading} />
       </main>
 
       <Footer lastUpdate={new Date()} />
+
+      <Dialog open={msgOpen} onOpenChange={setMsgOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enviar mensagem ({selected.size} cliente(s))</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Use <code className="rounded bg-muted px-1">{"{nome}"}</code> e{" "}
+              <code className="rounded bg-muted px-1">{"{carro}"}</code> para personalizar.
+            </p>
+            <Textarea
+              rows={6}
+              placeholder="Olá {nome}, temos um {carro} novo no estoque..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMsgOpen(false)}>Cancelar</Button>
+            <Button onClick={sendMessages} className="bg-gradient-primary gap-2">
+              <MessageCircle className="h-4 w-4" /> Abrir WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
