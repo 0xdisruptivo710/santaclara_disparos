@@ -138,7 +138,7 @@ const Index = () => {
     setMsgOpen(true);
   };
 
-  const sendMessages = () => {
+  const sendMessages = async () => {
     const targets = results.filter((r) => selected.has(r.id));
     if (!message.trim()) {
       toast({ title: "Mensagem vazia", variant: "destructive" });
@@ -150,6 +150,21 @@ const Index = () => {
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(personal)}`;
       setTimeout(() => window.open(url, "_blank"), idx * 400);
     });
+
+    // Log envio history
+    const { error } = await supabase.from("envios").insert({
+      mensagem: message,
+      total: targets.length,
+      busca: query,
+      clientes: targets.map((t) => ({
+        id: t.id,
+        nome: t.nome,
+        numero: t.numero,
+        carro_interesse: t.carro_interesse,
+      })),
+    });
+    if (error) console.error("Falha ao registrar envio:", error);
+
     setMsgOpen(false);
     toast({ title: `Abrindo WhatsApp para ${targets.length} cliente(s)` });
   };
