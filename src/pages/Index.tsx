@@ -196,6 +196,7 @@ const Index = () => {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setSelected(new Set());
+                  setVisible(PAGE_SIZE);
                 }}
                 className="pl-9 h-11"
               />
