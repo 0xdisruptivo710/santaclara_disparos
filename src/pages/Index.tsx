@@ -422,7 +422,7 @@ const Index = () => {
       <Dialog open={msgOpen} onOpenChange={setMsgOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Enviar mensagem ({selected.size} cliente(s))</DialogTitle>
+            <DialogTitle>Enviar mensagem ({targets.length} cliente(s){sendMode === "all" ? " — todos os resultados" : ""})</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
