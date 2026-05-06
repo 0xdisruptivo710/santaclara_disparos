@@ -78,7 +78,11 @@ const Index = () => {
 
   const results = useMemo(() => {
     if (!query.trim()) return [];
-    return interesses.filter((i) => matchesCar(i.carro_interesse, query));
+    return interesses
+      .map((i) => ({ item: i, score: scoreMatch(i.carro_interesse, query) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map((x) => x.item);
   }, [interesses, query]);
 
   const allSelected = results.length > 0 && results.every((r) => selected.has(r.id));
