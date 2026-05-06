@@ -1,4 +1,4 @@
-import { Search, Database } from "lucide-react";
+import { Search, Database, History } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ export function Header() {
   const navItems = [
     { path: "/", label: "Buscar", icon: Search },
     { path: "/cadastro", label: "Cadastro", icon: Database },
+    { path: "/historico", label: "Histórico", icon: History },
   ];
 
   return (
