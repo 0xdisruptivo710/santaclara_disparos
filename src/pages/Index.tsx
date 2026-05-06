@@ -69,6 +69,8 @@ const Index = () => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msgOpen, setMsgOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(PAGE_SIZE);
 
