@@ -160,18 +160,28 @@ const Index = () => {
   };
 
   const targets = useMemo(
-    () => results.filter((r) => selected.has(r.id)),
-    [results, selected]
+    () => (sendMode === "all" ? results : results.filter((r) => selected.has(r.id))),
+    [results, selected, sendMode]
   );
 
-  const overLimit = selected.size > MAX_BATCH;
-  const estimatedMinutes = Math.ceil((selected.size * INTERVAL_SECONDS) / 60);
+  const overLimit = targets.length > MAX_BATCH;
+  const estimatedMinutes = Math.ceil((targets.length * INTERVAL_SECONDS) / 60);
 
-  const openMsg = () => {
+  const openMsgSelected = () => {
     if (selected.size === 0) {
       toast({ title: "Selecione clientes", description: "Marque ao menos um cliente para enviar mensagem.", variant: "destructive" });
       return;
     }
+    setSendMode("selected");
+    setMsgOpen(true);
+  };
+
+  const openMsgAll = () => {
+    if (results.length === 0) {
+      toast({ title: "Sem resultados", description: "Faça uma busca primeiro.", variant: "destructive" });
+      return;
+    }
+    setSendMode("all");
     setMsgOpen(true);
   };
 
