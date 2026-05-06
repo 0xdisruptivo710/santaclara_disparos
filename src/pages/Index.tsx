@@ -78,7 +78,8 @@ const Index = () => {
   const [msgOpen, setMsgOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [sendMode, setSendMode] = useState<"selected" | "all">("selected");
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   const { data: interesses = [], isLoading } = useQuery({
