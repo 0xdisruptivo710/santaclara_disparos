@@ -441,7 +441,7 @@ const Index = () => {
               <p>• Para volumes maiores, utilize <strong>Campanhas</strong> no CRM AIOS.</p>
               {overLimit && (
                 <p className="text-destructive font-medium">
-                  Você selecionou {selected.size}. Reduza para no máximo {MAX_BATCH}.
+                  Você selecionou {targets.length}. Reduza para no máximo {MAX_BATCH}.
                 </p>
               )}
             </div>
