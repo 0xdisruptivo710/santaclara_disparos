@@ -296,9 +296,13 @@ const Index = () => {
               <Download className="h-4 w-4" />
               Exportar CSV
             </Button>
-            <Button onClick={openMsg} className="gap-2 h-11 bg-gradient-primary">
+            <Button onClick={openMsgSelected} variant="outline" className="gap-2 h-11">
               <MessageCircle className="h-4 w-4" />
-              Enviar mensagem ({selected.size})
+              Selecionados ({selected.size})
+            </Button>
+            <Button onClick={openMsgAll} className="gap-2 h-11 bg-gradient-primary">
+              <MessageCircle className="h-4 w-4" />
+              Enviar para todos ({results.length})
             </Button>
           </div>
 
