@@ -67,6 +67,8 @@ const SEND_ENDPOINT = (import.meta.env.VITE_SEND_ENDPOINT as string | undefined)
 
 const Index = () => {
   const [query, setQuery] = useState("");
+  const [carFilter, setCarFilter] = useState<string>("__all__");
+  const [refine, setRefine] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msgOpen, setMsgOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
