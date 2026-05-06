@@ -248,7 +248,7 @@ const Index = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((r) => (
+                {visibleResults.map((r) => (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => toggleOne(r.id)}>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -266,6 +266,16 @@ const Index = () => {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {query.trim() && visible < results.length && (
+            <div className="flex items-center justify-between border-t border-border px-6 py-3 text-sm">
+              <span className="text-muted-foreground">
+                Mostrando {visibleResults.length} de {results.length}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setVisible((v) => v + PAGE_SIZE)}>
+                Carregar mais
+              </Button>
+            </div>
           )}
         </section>
       </main>
