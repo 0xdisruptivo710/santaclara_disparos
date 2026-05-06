@@ -88,6 +88,8 @@ const Index = () => {
       .map((x) => x.item);
   }, [interesses, query]);
 
+  const visibleResults = useMemo(() => results.slice(0, visible), [results, visible]);
+
   const allSelected = results.length > 0 && results.every((r) => selected.has(r.id));
 
   const toggleAll = () => {
