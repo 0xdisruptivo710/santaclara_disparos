@@ -196,7 +196,11 @@ const Index = () => {
     setSending(true);
 
     const personalize = (t: Interesse) =>
-      message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
+      message
+        .replace(/\{nome\}/gi, t.nome)
+        .replace(/\{carro\}/gi, t.carro_interesse)
+        .replace(/\[modelo carro\]/gi, t.carro_interesse)
+        .replace(/\[nome\]/gi, t.nome);
 
     targets.forEach((t, idx) => {
       const phone = t.numero.replace(/\D/g, "");
@@ -207,7 +211,11 @@ const Index = () => {
             await fetch(SEND_ENDPOINT, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ nome: t.nome, numero: phone, mensagem: texto, carro: t.carro_interesse }),
+              body: JSON.stringify({
+                body: { text: texto },
+                to: phone,
+                from: SENDER_NUMBER,
+              }),
             });
           } catch (e) {
             console.error("Falha no disparo:", e);
