@@ -137,6 +137,14 @@ const Index = () => {
     URL.revokeObjectURL(url);
   };
 
+  const targets = useMemo(
+    () => results.filter((r) => selected.has(r.id)),
+    [results, selected]
+  );
+
+  const overLimit = selected.size > MAX_BATCH;
+  const estimatedMinutes = Math.ceil((selected.size * INTERVAL_SECONDS) / 60);
+
   const openMsg = () => {
     if (selected.size === 0) {
       toast({ title: "Selecione clientes", description: "Marque ao menos um cliente para enviar mensagem.", variant: "destructive" });
@@ -145,20 +153,49 @@ const Index = () => {
     setMsgOpen(true);
   };
 
-  const sendMessages = async () => {
-    const targets = results.filter((r) => selected.has(r.id));
+  const openConfirm = () => {
     if (!message.trim()) {
       toast({ title: "Mensagem vazia", variant: "destructive" });
       return;
     }
+    if (overLimit) {
+      toast({
+        title: "Limite excedido",
+        description: `Disparo em lote limitado a ${MAX_BATCH} clientes. Para volumes maiores, use Campanhas no CRM AIOS.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmOpen(true);
+  };
+
+  const sendMessages = async () => {
+    if (targets.length === 0 || !message.trim()) return;
+    setSending(true);
+
+    const personalize = (t: Interesse) =>
+      message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
+
     targets.forEach((t, idx) => {
       const phone = t.numero.replace(/\D/g, "");
-      const personal = message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
-      const url = `https://wa.me/${phone}?text=${encodeURIComponent(personal)}`;
-      setTimeout(() => window.open(url, "_blank"), idx * 400);
+      const texto = personalize(t);
+      setTimeout(async () => {
+        if (SEND_ENDPOINT) {
+          try {
+            await fetch(SEND_ENDPOINT, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ nome: t.nome, numero: phone, mensagem: texto, carro: t.carro_interesse }),
+            });
+          } catch (e) {
+            console.error("Falha no disparo:", e);
+          }
+        } else {
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(texto)}`, "_blank");
+        }
+      }, idx * INTERVAL_SECONDS * 1000);
     });
 
-    // Log envio history
     const { error } = await supabase.from("envios").insert({
       mensagem: message,
       total: targets.length,
@@ -172,8 +209,13 @@ const Index = () => {
     });
     if (error) console.error("Falha ao registrar envio:", error);
 
+    setSending(false);
+    setConfirmOpen(false);
     setMsgOpen(false);
-    toast({ title: `Abrindo WhatsApp para ${targets.length} cliente(s)` });
+    toast({
+      title: "Disparo iniciado",
+      description: `${targets.length} cliente(s) — duração estimada: ${estimatedMinutes} min (1 a cada ${INTERVAL_SECONDS}s).`,
+    });
   };
 
   return (
