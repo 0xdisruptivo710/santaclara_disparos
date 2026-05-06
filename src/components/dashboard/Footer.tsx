@@ -19,9 +19,9 @@ export function Footer({ lastUpdate }: FooterProps) {
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <span>AIOS</span>
+            <span>Malentachi</span>
             <span className="text-primary">•</span>
-            <span>Dashboard Tráfego</span>
+            <span>Busca por Interesse</span>
           </div>
         </div>
       </div>
