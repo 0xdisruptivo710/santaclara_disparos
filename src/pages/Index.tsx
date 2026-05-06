@@ -63,6 +63,9 @@ function scoreMatch(carroInteresse: string, query: string): number {
 const PAGE_SIZE = 25;
 const MAX_BATCH = 50;
 const INTERVAL_SECONDS = 30;
+const SENDER_NUMBER = "5515991280217";
+const DEFAULT_MESSAGE =
+  "Olá, você entrou em contato conosco recentemente atrás {carro}, chegou outro mais novo ainda, gostaria de ver?";
 // Endpoint de disparo individual (será preenchido pelo backend do CRM AIOS).
 // Cada cliente é enviado de forma espaçada para evitar bloqueios do WhatsApp.
 const SEND_ENDPOINT = (import.meta.env.VITE_SEND_ENDPOINT as string | undefined) ?? "";
