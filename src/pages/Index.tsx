@@ -3,6 +3,7 @@ import { Search, Download, MessageCircle, Users, Car } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
+import { malentachiApi } from "@/integrations/malentachi/client";
 import { Interesse } from "@/types/interesse";
 import { Header } from "@/components/dashboard/Header";
 import { Footer } from "@/components/dashboard/Footer";
