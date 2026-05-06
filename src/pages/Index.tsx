@@ -347,11 +347,68 @@ const Index = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+              <p>• Disparo espaçado de <strong>{INTERVAL_SECONDS}s</strong> entre cada cliente.</p>
+              <p>• Limite de <strong>{MAX_BATCH} clientes</strong> por lote neste módulo.</p>
+              <p>• Para volumes maiores, utilize <strong>Campanhas</strong> no CRM AIOS.</p>
+              {overLimit && (
+                <p className="text-destructive font-medium">
+                  Você selecionou {selected.size}. Reduza para no máximo {MAX_BATCH}.
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMsgOpen(false)}>Cancelar</Button>
-            <Button onClick={sendMessages} className="bg-gradient-primary gap-2">
-              <MessageCircle className="h-4 w-4" /> Abrir WhatsApp
+            <Button onClick={openConfirm} disabled={overLimit} className="bg-gradient-primary gap-2">
+              <MessageCircle className="h-4 w-4" /> Revisar e disparar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar disparo em lote</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Clientes</p>
+                <p className="text-2xl font-bold text-foreground">{targets.length}</p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Duração estimada</p>
+                <p className="text-2xl font-bold text-foreground">~{estimatedMinutes} min</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Busca</p>
+              <Badge variant="outline">{query || "—"}</Badge>
+            </div>
+            <div className="rounded-lg border border-border p-3 max-h-40 overflow-auto">
+              <p className="text-xs text-muted-foreground mb-2">Prévia da mensagem</p>
+              <p className="whitespace-pre-wrap text-foreground">
+                {targets[0]
+                  ? message
+                      .replace(/\{nome\}/gi, targets[0].nome)
+                      .replace(/\{carro\}/gi, targets[0].carro_interesse)
+                  : message}
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Os envios serão feitos um a cada <strong>{INTERVAL_SECONDS} segundos</strong>. Mantenha esta aba aberta durante o processo.
+              Para disparos acima de {MAX_BATCH} contatos, utilize <strong>Campanhas</strong> no CRM AIOS.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={sending}>
+              Voltar
+            </Button>
+            <Button onClick={sendMessages} disabled={sending} className="bg-gradient-primary gap-2">
+              <MessageCircle className="h-4 w-4" />
+              {sending ? "Iniciando..." : `Confirmar disparo (${targets.length})`}
             </Button>
           </DialogFooter>
         </DialogContent>
