@@ -216,22 +216,15 @@ const Index = () => {
       const phone = t.numero.replace(/\D/g, "");
       const texto = personalize(t);
       setTimeout(async () => {
-        if (SEND_ENDPOINT) {
-          try {
-            await fetch(SEND_ENDPOINT, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                body: { text: texto },
-                to: phone,
-                from: SENDER_NUMBER,
-              }),
-            });
-          } catch (e) {
-            console.error("Falha no disparo:", e);
+        try {
+          const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+            body: { to: phone, text: texto },
+          });
+          if (error || (data && (data as { success?: boolean }).success === false)) {
+            console.error("Falha no disparo:", error ?? data);
           }
-        } else {
-          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(texto)}`, "_blank");
+        } catch (e) {
+          console.error("Falha no disparo:", e);
         }
       }, idx * INTERVAL_SECONDS * 1000);
     });
