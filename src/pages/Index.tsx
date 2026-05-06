@@ -212,24 +212,51 @@ const Index = () => {
         .replace(/\[modelo carro\]/gi, t.carro_interesse)
         .replace(/\[nome\]/gi, t.nome);
 
-    targets.forEach((t, idx) => {
+    const sendOne = async (t: Interesse) => {
       const phone = t.numero.replace(/\D/g, "");
       const texto = personalize(t);
+      try {
+        const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+          body: { to: phone, text: texto },
+        });
+        const ok = !error && !(data && (data as { success?: boolean }).success === false);
+        if (!ok) console.error("Falha no disparo para", phone, error ?? data);
+        return ok;
+      } catch (e) {
+        console.error("Falha no disparo para", phone, e);
+        return false;
+      }
+    };
+
+    // 1º envio: aguardar para validar endpoint/credencial e dar feedback real
+    const firstOk = await sendOne(targets[0]);
+    if (!firstOk) {
+      setSending(false);
+      toast({
+        title: "Falha ao disparar",
+        description: "Não foi possível enviar a primeira mensagem. Verifique a API key e o endpoint.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Demais: agendar espaçados de 30s
+    let okCount = 1;
+    let failCount = 0;
+    targets.slice(1).forEach((t, idx) => {
       setTimeout(async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke("send-whatsapp", {
-            body: { to: phone, text: texto },
+        const ok = await sendOne(t);
+        if (ok) okCount++; else failCount++;
+        if (okCount + failCount === targets.length) {
+          toast({
+            title: "Disparo concluído",
+            description: `${okCount} enviada(s), ${failCount} falha(s).`,
           });
-          if (error || (data && (data as { success?: boolean }).success === false)) {
-            console.error("Falha no disparo:", error ?? data);
-          }
-        } catch (e) {
-          console.error("Falha no disparo:", e);
         }
-      }, idx * INTERVAL_SECONDS * 1000);
+      }, (idx + 1) * INTERVAL_SECONDS * 1000);
     });
 
-    const { error } = await supabase.from("envios").insert({
+    const { error: logErr } = await supabase.from("envios").insert({
       mensagem: message,
       total: targets.length,
       busca: query,
@@ -240,14 +267,17 @@ const Index = () => {
         carro_interesse: t.carro_interesse,
       })),
     });
-    if (error) console.error("Falha ao registrar envio:", error);
+    if (logErr) console.error("Falha ao registrar envio:", logErr);
 
     setSending(false);
     setConfirmOpen(false);
     setMsgOpen(false);
     toast({
       title: "Disparo iniciado",
-      description: `${targets.length} cliente(s) — duração estimada: ${estimatedMinutes} min (1 a cada ${INTERVAL_SECONDS}s).`,
+      description:
+        targets.length === 1
+          ? "1 mensagem enviada com sucesso."
+          : `1ª enviada. Restantes ${targets.length - 1} serão disparadas a cada ${INTERVAL_SECONDS}s (~${estimatedMinutes} min).`,
     });
   };
 
