@@ -27,12 +27,35 @@ function tokenize(s: string): string[] {
   return normalize(s).split(/\s+/).filter(Boolean);
 }
 
-function matchesCar(carroInteresse: string, query: string): boolean {
-  if (!query.trim()) return false;
+function scoreMatch(carroInteresse: string, query: string): number {
+  if (!query.trim()) return 0;
   const interesse = normalize(carroInteresse);
+  const interesseTokens = interesse.split(/\s+/).filter(Boolean);
+  const queryNorm = normalize(query);
   const tokens = tokenize(query);
-  // Match if any token appears as substring (covers Fox/Crossfox)
-  return tokens.some((t) => interesse.includes(t));
+
+  let score = 0;
+
+  // Exact full match
+  if (interesse === queryNorm) score += 1000;
+
+  // Full query as substring
+  if (interesse.includes(queryNorm)) score += 200;
+
+  for (const t of tokens) {
+    if (!t) continue;
+    // Exact token match (whole word) — Fox === Fox
+    if (interesseTokens.includes(t)) score += 100;
+    // Starts with token — "Fox Prime"
+    else if (interesseTokens.some((it) => it.startsWith(t))) score += 60;
+    // Substring — "Crossfox" contains "fox"
+    else if (interesse.includes(t)) score += 30;
+  }
+
+  // Small boost when shorter strings match (more specific)
+  if (score > 0) score += Math.max(0, 20 - interesse.length);
+
+  return score;
 }
 
 const Index = () => {
