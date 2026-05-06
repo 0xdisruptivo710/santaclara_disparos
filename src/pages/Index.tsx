@@ -59,11 +59,18 @@ function scoreMatch(carroInteresse: string, query: string): number {
 }
 
 const PAGE_SIZE = 25;
+const MAX_BATCH = 50;
+const INTERVAL_SECONDS = 30;
+// Endpoint de disparo individual (será preenchido pelo backend do CRM AIOS).
+// Cada cliente é enviado de forma espaçada para evitar bloqueios do WhatsApp.
+const SEND_ENDPOINT = (import.meta.env.VITE_SEND_ENDPOINT as string | undefined) ?? "";
 
 const Index = () => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msgOpen, setMsgOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [visible, setVisible] = useState(PAGE_SIZE);
 
@@ -130,6 +137,14 @@ const Index = () => {
     URL.revokeObjectURL(url);
   };
 
+  const targets = useMemo(
+    () => results.filter((r) => selected.has(r.id)),
+    [results, selected]
+  );
+
+  const overLimit = selected.size > MAX_BATCH;
+  const estimatedMinutes = Math.ceil((selected.size * INTERVAL_SECONDS) / 60);
+
   const openMsg = () => {
     if (selected.size === 0) {
       toast({ title: "Selecione clientes", description: "Marque ao menos um cliente para enviar mensagem.", variant: "destructive" });
@@ -138,20 +153,49 @@ const Index = () => {
     setMsgOpen(true);
   };
 
-  const sendMessages = async () => {
-    const targets = results.filter((r) => selected.has(r.id));
+  const openConfirm = () => {
     if (!message.trim()) {
       toast({ title: "Mensagem vazia", variant: "destructive" });
       return;
     }
+    if (overLimit) {
+      toast({
+        title: "Limite excedido",
+        description: `Disparo em lote limitado a ${MAX_BATCH} clientes. Para volumes maiores, use Campanhas no CRM AIOS.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmOpen(true);
+  };
+
+  const sendMessages = async () => {
+    if (targets.length === 0 || !message.trim()) return;
+    setSending(true);
+
+    const personalize = (t: Interesse) =>
+      message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
+
     targets.forEach((t, idx) => {
       const phone = t.numero.replace(/\D/g, "");
-      const personal = message.replace(/\{nome\}/gi, t.nome).replace(/\{carro\}/gi, t.carro_interesse);
-      const url = `https://wa.me/${phone}?text=${encodeURIComponent(personal)}`;
-      setTimeout(() => window.open(url, "_blank"), idx * 400);
+      const texto = personalize(t);
+      setTimeout(async () => {
+        if (SEND_ENDPOINT) {
+          try {
+            await fetch(SEND_ENDPOINT, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ nome: t.nome, numero: phone, mensagem: texto, carro: t.carro_interesse }),
+            });
+          } catch (e) {
+            console.error("Falha no disparo:", e);
+          }
+        } else {
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(texto)}`, "_blank");
+        }
+      }, idx * INTERVAL_SECONDS * 1000);
     });
 
-    // Log envio history
     const { error } = await supabase.from("envios").insert({
       mensagem: message,
       total: targets.length,
@@ -165,8 +209,13 @@ const Index = () => {
     });
     if (error) console.error("Falha ao registrar envio:", error);
 
+    setSending(false);
+    setConfirmOpen(false);
     setMsgOpen(false);
-    toast({ title: `Abrindo WhatsApp para ${targets.length} cliente(s)` });
+    toast({
+      title: "Disparo iniciado",
+      description: `${targets.length} cliente(s) — duração estimada: ${estimatedMinutes} min (1 a cada ${INTERVAL_SECONDS}s).`,
+    });
   };
 
   return (
@@ -298,11 +347,68 @@ const Index = () => {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
+            <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground space-y-1">
+              <p>• Disparo espaçado de <strong>{INTERVAL_SECONDS}s</strong> entre cada cliente.</p>
+              <p>• Limite de <strong>{MAX_BATCH} clientes</strong> por lote neste módulo.</p>
+              <p>• Para volumes maiores, utilize <strong>Campanhas</strong> no CRM AIOS.</p>
+              {overLimit && (
+                <p className="text-destructive font-medium">
+                  Você selecionou {selected.size}. Reduza para no máximo {MAX_BATCH}.
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setMsgOpen(false)}>Cancelar</Button>
-            <Button onClick={sendMessages} className="bg-gradient-primary gap-2">
-              <MessageCircle className="h-4 w-4" /> Abrir WhatsApp
+            <Button onClick={openConfirm} disabled={overLimit} className="bg-gradient-primary gap-2">
+              <MessageCircle className="h-4 w-4" /> Revisar e disparar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar disparo em lote</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Clientes</p>
+                <p className="text-2xl font-bold text-foreground">{targets.length}</p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground">Duração estimada</p>
+                <p className="text-2xl font-bold text-foreground">~{estimatedMinutes} min</p>
+              </div>
+            </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Busca</p>
+              <Badge variant="outline">{query || "—"}</Badge>
+            </div>
+            <div className="rounded-lg border border-border p-3 max-h-40 overflow-auto">
+              <p className="text-xs text-muted-foreground mb-2">Prévia da mensagem</p>
+              <p className="whitespace-pre-wrap text-foreground">
+                {targets[0]
+                  ? message
+                      .replace(/\{nome\}/gi, targets[0].nome)
+                      .replace(/\{carro\}/gi, targets[0].carro_interesse)
+                  : message}
+              </p>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Os envios serão feitos um a cada <strong>{INTERVAL_SECONDS} segundos</strong>. Mantenha esta aba aberta durante o processo.
+              Para disparos acima de {MAX_BATCH} contatos, utilize <strong>Campanhas</strong> no CRM AIOS.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)} disabled={sending}>
+              Voltar
+            </Button>
+            <Button onClick={sendMessages} disabled={sending} className="bg-gradient-primary gap-2">
+              <MessageCircle className="h-4 w-4" />
+              {sending ? "Iniciando..." : `Confirmar disparo (${targets.length})`}
             </Button>
           </DialogFooter>
         </DialogContent>
