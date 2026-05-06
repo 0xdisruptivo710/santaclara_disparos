@@ -80,14 +80,7 @@ const Index = () => {
 
   const { data: interesses = [], isLoading } = useQuery({
     queryKey: ["interesses"],
-    queryFn: async (): Promise<Interesse[]> => {
-      const { data, error } = await supabase
-        .from("interesses")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Interesse[];
-    },
+    queryFn: () => malentachiApi.list(),
   });
 
   const baseResults = useMemo(() => {
