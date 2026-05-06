@@ -58,11 +58,14 @@ function scoreMatch(carroInteresse: string, query: string): number {
   return score;
 }
 
+const PAGE_SIZE = 25;
+
 const Index = () => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msgOpen, setMsgOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   const { data: interesses = [], isLoading } = useQuery({
     queryKey: ["interesses"],
