@@ -58,11 +58,14 @@ function scoreMatch(carroInteresse: string, query: string): number {
   return score;
 }
 
+const PAGE_SIZE = 25;
+
 const Index = () => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [msgOpen, setMsgOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const [visible, setVisible] = useState(PAGE_SIZE);
 
   const { data: interesses = [], isLoading } = useQuery({
     queryKey: ["interesses"],
@@ -84,6 +87,8 @@ const Index = () => {
       .sort((a, b) => b.score - a.score)
       .map((x) => x.item);
   }, [interesses, query]);
+
+  const visibleResults = useMemo(() => results.slice(0, visible), [results, visible]);
 
   const allSelected = results.length > 0 && results.every((r) => selected.has(r.id));
 
@@ -133,7 +138,7 @@ const Index = () => {
     setMsgOpen(true);
   };
 
-  const sendMessages = () => {
+  const sendMessages = async () => {
     const targets = results.filter((r) => selected.has(r.id));
     if (!message.trim()) {
       toast({ title: "Mensagem vazia", variant: "destructive" });
@@ -145,6 +150,21 @@ const Index = () => {
       const url = `https://wa.me/${phone}?text=${encodeURIComponent(personal)}`;
       setTimeout(() => window.open(url, "_blank"), idx * 400);
     });
+
+    // Log envio history
+    const { error } = await supabase.from("envios").insert({
+      mensagem: message,
+      total: targets.length,
+      busca: query,
+      clientes: targets.map((t) => ({
+        id: t.id,
+        nome: t.nome,
+        numero: t.numero,
+        carro_interesse: t.carro_interesse,
+      })),
+    });
+    if (error) console.error("Falha ao registrar envio:", error);
+
     setMsgOpen(false);
     toast({ title: `Abrindo WhatsApp para ${targets.length} cliente(s)` });
   };
@@ -176,6 +196,7 @@ const Index = () => {
                 onChange={(e) => {
                   setQuery(e.target.value);
                   setSelected(new Set());
+                  setVisible(PAGE_SIZE);
                 }}
                 className="pl-9 h-11"
               />
@@ -227,7 +248,7 @@ const Index = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {results.map((r) => (
+                {visibleResults.map((r) => (
                   <TableRow key={r.id} className="cursor-pointer" onClick={() => toggleOne(r.id)}>
                     <TableCell onClick={(e) => e.stopPropagation()}>
                       <Checkbox
@@ -245,6 +266,16 @@ const Index = () => {
                 ))}
               </TableBody>
             </Table>
+          )}
+          {query.trim() && visible < results.length && (
+            <div className="flex items-center justify-between border-t border-border px-6 py-3 text-sm">
+              <span className="text-muted-foreground">
+                Mostrando {visibleResults.length} de {results.length}
+              </span>
+              <Button variant="outline" size="sm" onClick={() => setVisible((v) => v + PAGE_SIZE)}>
+                Carregar mais
+              </Button>
+            </div>
           )}
         </section>
       </main>
