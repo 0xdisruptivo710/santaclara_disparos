@@ -37,14 +37,7 @@ const Cadastro = () => {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["interesses"],
-    queryFn: async (): Promise<Interesse[]> => {
-      const { data, error } = await supabase
-        .from("interesses")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Interesse[];
-    },
+    queryFn: () => malentachiApi.list(),
   });
 
   const upsert = useMutation({
@@ -59,11 +52,9 @@ const Cadastro = () => {
         nota_interna: form.nota_interna.trim() || null,
       };
       if (editing) {
-        const { error } = await supabase.from("interesses").update(payload).eq("id", editing.id);
-        if (error) throw error;
+        await malentachiApi.update(editing.id, payload);
       } else {
-        const { error } = await supabase.from("interesses").insert(payload);
-        if (error) throw error;
+        await malentachiApi.insert(payload);
       }
     },
     onSuccess: () => {
@@ -77,10 +68,7 @@ const Cadastro = () => {
   });
 
   const remove = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("interesses").delete().eq("id", id);
-      if (error) throw error;
-    },
+    mutationFn: (id: string) => malentachiApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["interesses"] });
       toast({ title: "Removido" });
