@@ -3,7 +3,7 @@ import { Search, Download, MessageCircle, Users, Car } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
-import { malentachiApi } from "@/integrations/malentachi/client";
+import { santaclaraApi } from "@/integrations/santaclara/client";
 import { Interesse } from "@/types/interesse";
 import { Header } from "@/components/dashboard/Header";
 import { Footer } from "@/components/dashboard/Footer";
@@ -63,12 +63,11 @@ function scoreMatch(carroInteresse: string, query: string): number {
 const PAGE_SIZE = 25;
 const MAX_BATCH = 50;
 const INTERVAL_SECONDS = 30;
-const SENDER_NUMBER = "5515991280217";
 const DEFAULT_MESSAGE =
   "Olá, você entrou em contato conosco recentemente atrás {carro}, chegou outro mais novo ainda, gostaria de ver?";
-// Endpoint de disparo individual (será preenchido pelo backend do CRM AIOS).
-// Cada cliente é enviado de forma espaçada para evitar bloqueios do WhatsApp.
-const SEND_ENDPOINT = (import.meta.env.VITE_SEND_ENDPOINT as string | undefined) ?? "";
+// Os disparos são feitos via Evolution API (instância Santaclara), em lotes de
+// até 50 contatos, com cada cliente enviado de forma espaçada (30s) para evitar
+// bloqueios da conta de WhatsApp.
 
 const Index = () => {
   const [query, setQuery] = useState("");
@@ -84,7 +83,7 @@ const Index = () => {
 
   const { data: interesses = [], isLoading } = useQuery({
     queryKey: ["interesses"],
-    queryFn: () => malentachiApi.list(),
+    queryFn: () => santaclaraApi.list(),
   });
 
   const baseResults = useMemo(() => {
@@ -216,7 +215,7 @@ const Index = () => {
       const phone = t.numero.replace(/\D/g, "");
       const texto = personalize(t);
       try {
-        const { data, error } = await supabase.functions.invoke("send-whatsapp", {
+        const { data, error } = await supabase.functions.invoke("send-evolution", {
           body: { to: phone, text: texto },
         });
         const ok = !error && !(data && (data as { success?: boolean }).success === false);

@@ -18,11 +18,11 @@ export function Header() {
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-primary text-primary-foreground font-bold">
-                M
+                SC
               </div>
               <div className="leading-tight">
                 <div className="text-sm font-bold text-foreground">Busca por Interesse</div>
-                <div className="text-xs text-muted-foreground">Malentachi</div>
+                <div className="text-xs text-muted-foreground">Santa Clara</div>
               </div>
             </Link>
 

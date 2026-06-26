@@ -19,7 +19,7 @@ export function Footer({ lastUpdate }: FooterProps) {
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <span>Malentachi</span>
+            <span>Santa Clara</span>
             <span className="text-primary">•</span>
             <span>Busca por Interesse</span>
           </div>

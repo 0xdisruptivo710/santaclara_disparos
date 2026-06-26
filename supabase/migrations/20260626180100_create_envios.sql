@@ -1,4 +1,5 @@
-CREATE TABLE public.envios (
+-- Histórico de disparos de mensagens.
+CREATE TABLE IF NOT EXISTS public.envios (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   mensagem TEXT NOT NULL,
   total INTEGER NOT NULL DEFAULT 0,
@@ -13,4 +14,4 @@ CREATE POLICY "Public read envios" ON public.envios FOR SELECT USING (true);
 CREATE POLICY "Public insert envios" ON public.envios FOR INSERT WITH CHECK (true);
 CREATE POLICY "Public delete envios" ON public.envios FOR DELETE USING (true);
 
-CREATE INDEX idx_envios_created_at ON public.envios(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_envios_created_at ON public.envios(created_at DESC);

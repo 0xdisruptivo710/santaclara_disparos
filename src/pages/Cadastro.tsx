@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, Database } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { malentachiApi } from "@/integrations/malentachi/client";
+import { santaclaraApi } from "@/integrations/santaclara/client";
 import { Interesse } from "@/types/interesse";
 import { Header } from "@/components/dashboard/Header";
 import { Footer } from "@/components/dashboard/Footer";
@@ -37,7 +37,7 @@ const Cadastro = () => {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["interesses"],
-    queryFn: () => malentachiApi.list(),
+    queryFn: () => santaclaraApi.list(),
   });
 
   const upsert = useMutation({
@@ -52,9 +52,9 @@ const Cadastro = () => {
         nota_interna: form.nota_interna.trim() || null,
       };
       if (editing) {
-        await malentachiApi.update(editing.id, payload);
+        await santaclaraApi.update(editing.id, payload);
       } else {
-        await malentachiApi.insert(payload);
+        await santaclaraApi.insert(payload);
       }
     },
     onSuccess: () => {
@@ -68,7 +68,7 @@ const Cadastro = () => {
   });
 
   const remove = useMutation({
-    mutationFn: (id: string) => malentachiApi.remove(id),
+    mutationFn: (id: string) => santaclaraApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["interesses"] });
       toast({ title: "Removido" });

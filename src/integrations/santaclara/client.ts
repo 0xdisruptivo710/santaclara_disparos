@@ -1,4 +1,4 @@
-// Cliente Supabase do banco externo Malentachi (somente dados de interesses).
+// Cliente Supabase do banco de leads Santa Clara (dados de interesses em veículos).
 // As credenciais abaixo são públicas (anon key) e podem ficar no código.
 import { createClient } from "@supabase/supabase-js";
 import type { Interesse } from "@/types/interesse";
@@ -7,11 +7,11 @@ const URL = "https://ehlpmukjdknnyhkycncb.supabase.co";
 const ANON =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVobHBtdWtqZGtubnloa3ljbmNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY5NzQwOTgsImV4cCI6MjA2MjU1MDA5OH0.y3NYzn7hQbuYZ2ZsUm4YGe-dh4GjlFKpTpKyIgrby-E";
 
-export const malentachi = createClient(URL, ANON, {
+export const santaclara = createClient(URL, ANON, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-export const TABLE = "Interesse_Malentachi";
+export const TABLE = "Interesse_SantaClara";
 
 // Mapeamento das colunas externas -> formato interno usado pelo app.
 type Row = {
@@ -33,9 +33,9 @@ const toInteresse = (r: Row): Interesse => ({
   updated_at: r.created_at ?? "",
 });
 
-export const malentachiApi = {
+export const santaclaraApi = {
   async list(): Promise<Interesse[]> {
-    const { data, error } = await malentachi
+    const { data, error } = await santaclara
       .from(TABLE)
       .select("*")
       .order("id", { ascending: false });
@@ -43,7 +43,7 @@ export const malentachiApi = {
     return (data as Row[]).map(toInteresse);
   },
   async insert(input: { nome: string; numero: string; carro_interesse: string; nota_interna: string | null }) {
-    const { error } = await malentachi.from(TABLE).insert({
+    const { error } = await santaclara.from(TABLE).insert({
       Nome: input.nome,
       Numero: input.numero,
       Interesse: input.carro_interesse,
@@ -53,7 +53,7 @@ export const malentachiApi = {
   },
   async update(id: string, input: { nome: string; numero: string; carro_interesse: string; nota_interna: string | null }) {
     const idVal: string | number = /^\d+$/.test(id) ? Number(id) : id;
-    const { error } = await malentachi
+    const { error } = await santaclara
       .from(TABLE)
       .update({
         Nome: input.nome,
@@ -66,7 +66,7 @@ export const malentachiApi = {
   },
   async remove(id: string) {
     const idVal: string | number = /^\d+$/.test(id) ? Number(id) : id;
-    const { error } = await malentachi.from(TABLE).delete().eq("id", idVal);
+    const { error } = await santaclara.from(TABLE).delete().eq("id", idVal);
     if (error) throw error;
   },
 };
