@@ -35,12 +35,22 @@ const toInteresse = (r: Row): Interesse => ({
 
 export const santaclaraApi = {
   async list(): Promise<Interesse[]> {
-    const { data, error } = await santaclara
-      .from(TABLE)
-      .select("*")
-      .order("id", { ascending: false });
-    if (error) throw error;
-    return (data as Row[]).map(toInteresse);
+    // O PostgREST do Supabase limita cada requisição a 1000 linhas, então
+    // paginamos com .range() até trazer toda a base.
+    const PAGE = 1000;
+    const all: Row[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await santaclara
+        .from(TABLE)
+        .select("*")
+        .order("id", { ascending: false })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const rows = (data as Row[]) ?? [];
+      all.push(...rows);
+      if (rows.length < PAGE) break;
+    }
+    return all.map(toInteresse);
   },
   async insert(input: { nome: string; numero: string; carro_interesse: string; nota_interna: string | null }) {
     const { error } = await santaclara.from(TABLE).insert({
